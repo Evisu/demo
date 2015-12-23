@@ -22,15 +22,15 @@
 					alert("Connection error");
 				},
 				dataType : "json",
-				success : function(data) {
-					alert(data);
-					if (data == true) {
-						alert("登陆成功");
-						location.reload();
-					} else {
-						alert("登陆失败,请检查账号密码")
-					}
-				}
+			    success: function(data) {
+                    if (data && data.ok) {
+                        alert("登陆成功");
+                        location.reload();
+                    } else {
+                    	next_captcha();
+                        alert(data.msg);
+                    }
+                }
 			});
 			return false;
 		});
@@ -50,6 +50,15 @@
 		<form action="#" id="loginForm" method="post">
 			用户名 <input name="name" type="text" value="admin"> 密码 <input
 				name="password" type="password" value="123456">
+			<script type="text/javascript">
+				function next_captcha() {
+					$("#captcha_img").attr("src",
+							"${base}/captcha/next?_=" + new Date().getTime());
+				}
+			</script>
+			验证码<input name="captcha" type="text" value=""> <img
+				id="captcha_img" onclick="next_captcha();return false;"
+				src="${base}/captcha/next"></img>
 			<button id="login_button">提交</button>
 		</form>
 	</div>

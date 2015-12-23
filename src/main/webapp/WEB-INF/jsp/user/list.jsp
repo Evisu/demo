@@ -10,8 +10,7 @@
 <script type="text/javascript">
     var pageNumber = 1;
     var pageSize = 10;
-    var base = '<%=request.getAttribute("base")%>
-	';
+    var base = '<%=request.getAttribute("base")%>';
 	function user_reload() {
 		$.ajax({
 			url : base + "/user/query",
@@ -46,7 +45,8 @@
 		$("#user_add_btn").click(function() {
 			$.ajax({
 				url : base + "/user/add",
-				data : $("#user_add_form").serialize(),
+				//.serialize()自动调用了encodeURIComponent方法将数据编码了 解决方法：调用decodeURIComponent(XXX,true);将数据解码 
+				data : decodeURIComponent($("#user_add_form").serialize(),true), 
 				dataType : "json",
 				success : function(data) {
 					if (data.ok) {
@@ -107,7 +107,7 @@
 		<form action="#" id="user_query_form">
 			条件<input type="text" name="name"> 页数<input type="text"
 				name="pageNumber" value="1"> 每页<input type="text"
-				name="pageSize" value="10">
+				name="pageSize" value="20">
 		</form>
 		<button id="user_query_btn">查询</button>
 		<p>---------------------------------------------------------------</p>

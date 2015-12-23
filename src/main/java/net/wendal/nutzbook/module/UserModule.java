@@ -1,15 +1,20 @@
 package net.wendal.nutzbook.module;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.util.Date;
 
 import javax.servlet.http.HttpSession;
 
+import org.nutz.aop.interceptor.ioc.TransAop;
 import org.nutz.dao.Cnd;
 import org.nutz.dao.QueryResult;
 import org.nutz.dao.pager.Pager;
+import org.nutz.ioc.aop.Aop;
 import org.nutz.ioc.loader.annotation.IocBean;
 import org.nutz.lang.Strings;
 import org.nutz.lang.util.NutMap;
+import org.nutz.mvc.Scope;
 import org.nutz.mvc.annotation.At;
 import org.nutz.mvc.annotation.Attr;
 import org.nutz.mvc.annotation.By;
@@ -20,6 +25,8 @@ import org.nutz.mvc.annotation.Param;
 import org.nutz.mvc.filter.CheckSession;
 
 import net.wendal.nutzbook.bean.User;
+import net.wendal.nutzbook.bean.UserProfile;
+import net.wendal.nutzbook.util.Toolkit;
 
 @IocBean // 声明为Ioc容器中的一个Bean
 @At( "/user" ) // 整个模块的路径前缀
@@ -37,16 +44,22 @@ public class UserModule extends BaseModule
 
 	@At
 	@Filters // 覆盖UserModule类的@Filter设置,因为登陆可不能要求是个已经登陆的Session
-	public Object login( @Param( "name" ) String name , @Param( "password" ) String password , HttpSession session)
+	public Object login( @Param( "name" ) String name , @Param( "password" ) String password , @Param( "captcha" ) String captcha ,
+			@Attr( scope = Scope.SESSION , value = "nutz_captcha" ) String _captcha , HttpSession session)
 	{
+		NutMap re = new NutMap();
+		if ( !Toolkit.checkCaptcha( _captcha, captcha ) )
+		{
+			return re.setv( "ok", false ).setv( "msg", "验证码错误" );
+		}
 		User user = dao.fetch( User.class, Cnd.where( "name", "=", name ).and( "password", "=", password ) );
 		if ( user == null )
 		{
-			return false;
+			return re.setv( "ok", false ).setv( "msg", "用户名或密码错误" );
 		} else
 		{
 			session.setAttribute( "me", user.getId() );
-			return true;
+			return re.setv( "ok", true );
 		}
 	}
 
@@ -66,6 +79,8 @@ public class UserModule extends BaseModule
 		{
 			return re.setv( "ok", false ).setv( "msg", msg );
 		}
+		user.setCreateTime( new Date() );
+		user.setUpdateTime( new Date() );
 		user = dao.insert( user );
 		return re.setv( "ok", true ).setv( "data", user );
 	}
@@ -87,6 +102,7 @@ public class UserModule extends BaseModule
 	}
 
 	@At
+	@Aop( TransAop.READ_COMMITTED )
 	public Object delete( @Param( "id" ) int id , @Attr( "me" ) int me)
 	{
 		if ( me == id )
@@ -94,6 +110,7 @@ public class UserModule extends BaseModule
 			return new NutMap().setv( "ok", false ).setv( "msg", "不能删除当前用户!!" );
 		}
 		dao.delete( User.class, id ); // 再严谨一些的话,需要判断是否为>0
+		dao.clear( UserProfile.class, Cnd.where( "userId", "=", me ) );
 		return new NutMap().setv( "ok", true );
 	}
 
@@ -149,8 +166,16 @@ public class UserModule extends BaseModule
 				return "用户Id非法";
 			}
 		}
-		if ( user.getName() != null )
-			user.setName( user.getName().trim() );
+		if ( user.getName() != null ){
+			
+			try
+			{
+				user.setName( new String(user.getName().getBytes("ISO-8859-1"),"UTF-8") );
+			} catch ( UnsupportedEncodingException e )
+			{
+				return "用户名不符合格式";
+			}
+		}
 		return null;
 	}
 }
