@@ -1,7 +1,6 @@
 package net.wendal.nutzbook.module;
 
 import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
 import java.util.Date;
 
 import javax.servlet.http.HttpSession;
