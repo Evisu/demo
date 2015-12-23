@@ -33,6 +33,7 @@ public class MainSetup implements Setup
 		// 获取NutQuartzCronJobFactory从而触发计划任务的初始化与启动
 		ioc.get( NutQuartzCronJobFactory.class );
 
+		// TODO 测试发送邮件未成功 可能是服务器参数设置问题
 		// 测试发送邮件
 		// try {
 		// HtmlEmail email = ioc.get(HtmlEmail.class);
