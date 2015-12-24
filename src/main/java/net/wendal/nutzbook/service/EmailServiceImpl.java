@@ -28,6 +28,7 @@ public class EmailServiceImpl implements EmailService
 			email.buildMimeMessage();
 			email.sendMimeMessage();
 			return true;
+			
 		} catch ( Throwable e )
 		{
 			log.info( "send email fail", e );
