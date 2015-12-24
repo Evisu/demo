@@ -12,7 +12,8 @@ public abstract class BaseModule {
     @Inject 
     protected Dao dao;
     
-    @Inject protected EmailService emailService;
+    @Inject 
+    protected EmailService emailService;
     
     protected byte[] emailKEY = R.sg(24).next().getBytes();
 
