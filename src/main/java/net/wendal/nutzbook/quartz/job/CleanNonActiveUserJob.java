@@ -31,7 +31,7 @@ public class CleanNonActiveUserJob implements Job
 		log.debug( "clean Non-Active User , start" );
 		// Date deadtime = new Date(System.currentTimeMillis() -
 		// 24*60*60*1000L); // 一天, 测试的时候可以改成1小时之类的
-		Date deadtime = new Date( System.currentTimeMillis() - 60 * 1000L ); // 一天,
+		Date deadtime = new Date( System.currentTimeMillis() - 24*60*60 * 1000L ); // 一天,
 																				// 测试的时候可以改成1小时之类的
 		Cnd cnd = Cnd.where( "userId", ">", 10 ).and( "createTime", "<", deadtime ).and( Cnd.exps( "emailChecked", "=", false ).or( "email", "IS", null ) );
 		int deleted = dao.clear( UserProfile.class, cnd );
