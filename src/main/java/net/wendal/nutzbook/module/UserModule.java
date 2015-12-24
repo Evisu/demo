@@ -1,39 +1,43 @@
 package net.wendal.nutzbook.module;
 
 import java.io.UnsupportedEncodingException;
-import java.util.Date;
 
 import javax.servlet.http.HttpSession;
 
+import org.apache.shiro.authz.annotation.RequiresUser;
 import org.nutz.aop.interceptor.ioc.TransAop;
 import org.nutz.dao.Cnd;
 import org.nutz.dao.QueryResult;
 import org.nutz.dao.pager.Pager;
 import org.nutz.ioc.aop.Aop;
+import org.nutz.ioc.loader.annotation.Inject;
 import org.nutz.ioc.loader.annotation.IocBean;
 import org.nutz.lang.Strings;
 import org.nutz.lang.util.NutMap;
 import org.nutz.mvc.Scope;
 import org.nutz.mvc.annotation.At;
 import org.nutz.mvc.annotation.Attr;
-import org.nutz.mvc.annotation.By;
 import org.nutz.mvc.annotation.Fail;
 import org.nutz.mvc.annotation.Filters;
+import org.nutz.mvc.annotation.GET;
 import org.nutz.mvc.annotation.Ok;
+import org.nutz.mvc.annotation.POST;
 import org.nutz.mvc.annotation.Param;
-import org.nutz.mvc.filter.CheckSession;
 
 import net.wendal.nutzbook.bean.User;
 import net.wendal.nutzbook.bean.UserProfile;
+import net.wendal.nutzbook.service.UserService;
 import net.wendal.nutzbook.util.Toolkit;
 
 @IocBean // 声明为Ioc容器中的一个Bean
 @At( "/user" ) // 整个模块的路径前缀
 @Ok( "json:{locked:'password|salt',ignoreNull:true}" ) // 忽略password和salt属性,忽略空属性的json输出
 @Fail( "http:500" ) // 抛出异常的话,就走500页面
-@Filters( @By( type = CheckSession.class , args = { "me", "/" } )) // 检查当前Session是否带me这个属性
 public class UserModule extends BaseModule
 {
+
+	@Inject
+	protected UserService userService;
 
 	@At
 	public int count()
@@ -42,8 +46,8 @@ public class UserModule extends BaseModule
 	}
 
 	@At
-	@Filters // 覆盖UserModule类的@Filter设置,因为登陆可不能要求是个已经登陆的Session
-	public Object login( @Param( "name" ) String name , @Param( "password" ) String password , @Param( "captcha" ) String captcha ,
+	@POST
+	public Object login( @Param( "username" ) String username , @Param( "password" ) String password , @Param( "captcha" ) String captcha ,
 			@Attr( scope = Scope.SESSION , value = "nutz_captcha" ) String _captcha , HttpSession session)
 	{
 		NutMap re = new NutMap();
@@ -51,25 +55,19 @@ public class UserModule extends BaseModule
 		{
 			return re.setv( "ok", false ).setv( "msg", "验证码错误" );
 		}
-		User user = dao.fetch( User.class, Cnd.where( "name", "=", name ).and( "password", "=", password ) );
-		if ( user == null )
+		int userId = userService.fetch( username, password );
+		if ( userId < 0 )
 		{
 			return re.setv( "ok", false ).setv( "msg", "用户名或密码错误" );
 		} else
 		{
-			session.setAttribute( "me", user.getId() );
+			session.setAttribute( "me", userId );
 			return re.setv( "ok", true );
 		}
 	}
 
 	@At
-	@Ok( ">>:/" ) // 跟其他方法不同,这个方法完成后就跳转首页了
-	public void logout( HttpSession session )
-	{
-		session.invalidate();
-	}
-
-	@At
+	@RequiresUser
 	public Object add( @Param( ".." ) User user)
 	{ // 两个点号是按对象属性一一设置
 		NutMap re = new NutMap();
@@ -78,30 +76,23 @@ public class UserModule extends BaseModule
 		{
 			return re.setv( "ok", false ).setv( "msg", msg );
 		}
-		user.setCreateTime( new Date() );
-		user.setUpdateTime( new Date() );
-		user = dao.insert( user );
+		user = userService.add( user.getName(), user.getPassword() );
 		return re.setv( "ok", true ).setv( "data", user );
 	}
 
 	@At
-	public Object update( @Param( ".." ) User user)
+	@RequiresUser
+	public Object update( @Param( "password" ) String password , @Attr( "me" ) int me)
 	{
-		NutMap re = new NutMap();
-		String msg = checkUser( user, false );
-		if ( msg != null )
-		{
-			return re.setv( "ok", false ).setv( "msg", msg );
-		}
-		user.setName( null );// 不允许更新用户名
-		user.setCreateTime( null );// 也不允许更新创建时间
-		user.setUpdateTime( new Date() );// 设置正确的更新时间
-		dao.updateIgnoreNull( user );// 真正更新的其实只有password和salt
-		return re.setv( "ok", true );
+		if ( Strings.isBlank( password ) || password.length() < 6 )
+			return new NutMap().setv( "ok", false ).setv( "msg", "密码不符合要求" );
+		userService.updatePassword( me, password );
+		return new NutMap().setv( "ok", true );
 	}
 
 	@At
 	@Aop( TransAop.READ_COMMITTED )
+	@RequiresUser
 	public Object delete( @Param( "id" ) int id , @Attr( "me" ) int me)
 	{
 		if ( me == id )
@@ -114,6 +105,7 @@ public class UserModule extends BaseModule
 	}
 
 	@At
+	@RequiresUser
 	public Object query( @Param( "name" ) String name , @Param( ".." ) Pager pager)
 	{
 		Cnd cnd = Strings.isBlank( name ) ? null : Cnd.where( "name", "like", "%" + name + "%" );
@@ -126,7 +118,15 @@ public class UserModule extends BaseModule
 
 	@At( "/" )
 	@Ok( "jsp:jsp.user.list" ) // 真实路径是 /WEB-INF/jsp/user/list.jsp
+	@RequiresUser
 	public void index()
+	{
+	}
+
+	@GET
+	@At( "/login" )
+	@Ok( "jsp:jsp.user.login" )
+	public void loginPage()
 	{
 	}
 
@@ -165,11 +165,12 @@ public class UserModule extends BaseModule
 				return "用户Id非法";
 			}
 		}
-		if ( user.getName() != null ){
-			
+		if ( user.getName() != null )
+		{
+
 			try
 			{
-				user.setName( new String(user.getName().getBytes("ISO-8859-1"),"UTF-8") );
+				user.setName( new String( user.getName().getBytes( "ISO-8859-1" ) , "UTF-8" ) );
 			} catch ( UnsupportedEncodingException e )
 			{
 				return "用户名不符合格式";

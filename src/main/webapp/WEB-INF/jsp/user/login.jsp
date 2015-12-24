@@ -27,8 +27,8 @@
                         alert("登陆成功");
                         location.reload();
                     } else {
-                    	next_captcha();
                         alert(data.msg);
+                    	next_captcha();
                     }
                 }
 			});
@@ -58,7 +58,7 @@
 					$("#captcha").focus();
 				}
 			</script>
-			验证码<input name="captcha" type="text" value=""> <img
+			验证码<input id="captcha" name="captcha" type="text" value=""> <img
 				id="captcha_img" onclick="next_captcha();return false;"
 				src="${base}/captcha/next"></img>
 			<button id="login_button">提交</button>

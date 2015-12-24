@@ -1,7 +1,5 @@
 package net.wendal.nutzbook;
 
-import java.util.Date;
-
 import org.nutz.dao.Dao;
 import org.nutz.dao.util.Daos;
 import org.nutz.integration.quartz.NutQuartzCronJobFactory;
@@ -10,6 +8,7 @@ import org.nutz.mvc.NutConfig;
 import org.nutz.mvc.Setup;
 
 import net.wendal.nutzbook.bean.User;
+import net.wendal.nutzbook.service.UserService;
 
 public class MainSetup implements Setup
 {
@@ -22,12 +21,8 @@ public class MainSetup implements Setup
 		// 初始化默认根用户
 		if ( dao.count( User.class ) == 0 )
 		{
-			User user = new User();
-			user.setName( "admin" );
-			user.setPassword( "123456" );
-			user.setCreateTime( new Date() );
-			user.setUpdateTime( new Date() );
-			dao.insert( user );
+			UserService us = ioc.get( UserService.class );
+			us.add( "admin", "123456" );
 		}
 
 		// 获取NutQuartzCronJobFactory从而触发计划任务的初始化与启动
